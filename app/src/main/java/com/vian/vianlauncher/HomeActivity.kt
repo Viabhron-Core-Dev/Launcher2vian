@@ -48,6 +48,8 @@ class HomeActivity : ComponentActivity() {
     private var lastGridRows = 5
     
     private var allAppsList = listOf<ResolveInfo>()
+    private var currentWorkspaceItems = listOf<WorkspaceItem>()
+    private var isFirstResume = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +96,30 @@ class HomeActivity : ComponentActivity() {
         workspace.onPageChangeListener = { page ->
             updatePageIndicator(page)
         }
+
+        workspace.onCellTap = { page, cellX, cellY ->
+            val pageLayout = workspace.pages[page]
+            if (pageLayout.isOccupied(cellX, cellY)) {
+                val item = currentWorkspaceItems.find { it.page == page && it.cellX == cellX && it.cellY == cellY }
+                if (item != null) {
+                    val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                    if (appInfo != null) launchApp(appInfo)
+                }
+            } else {
+                showAppPicker(page, cellX, cellY, pageLayout)
+            }
+        }
+
+        workspace.onCellLongPress = { page, cellX, cellY ->
+            val pageLayout = workspace.pages[page]
+            if (pageLayout.isOccupied(cellX, cellY)) {
+                val item = currentWorkspaceItems.find { it.page == page && it.cellX == cellX && it.cellY == cellY }
+                if (item != null) {
+                    val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                    if (appInfo != null) showAppOptions(item, appInfo, pageLayout)
+                }
+            }
+        }
     }
 
     override fun onResume() {
@@ -102,7 +128,12 @@ class HomeActivity : ComponentActivity() {
         val cols = prefs.getInt("grid_cols", 4)
         val rows = prefs.getInt("grid_rows", 5)
         
-        if (cols != lastGridCols || rows != lastGridRows) {
+        if (isFirstResume) {
+            isFirstResume = false
+            lastGridCols = cols
+            lastGridRows = rows
+            rebuildWorkspaceAndHotseat()
+        } else if (cols != lastGridCols || rows != lastGridRows) {
             AppLogger.d("HomeActivity", "Grid size changed, clearing workspace")
             lastGridCols = cols
             lastGridRows = rows
@@ -112,8 +143,6 @@ class HomeActivity : ComponentActivity() {
                     rebuildWorkspaceAndHotseat()
                 }
             }
-        } else {
-            rebuildWorkspaceAndHotseat()
         }
     }
 
@@ -149,6 +178,10 @@ class HomeActivity : ComponentActivity() {
                     val appView = createAppView(appInfo, false)
                     hotseat.placeView(appView, hotseatIndex, 0)
                     appView.setOnClickListener { launchApp(appInfo) }
+                    appView.setOnLongClickListener { 
+                        showAppOptions(null, appInfo, null)
+                        true 
+                    }
                     hotseatPackages.add(appInfo.activityInfo.packageName)
                     hotseatIndex++
                 }
@@ -158,6 +191,7 @@ class HomeActivity : ComponentActivity() {
             val items = withContext(Dispatchers.IO) {
                 LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
             }
+            currentWorkspaceItems = items
             
             for (item in items) {
                 if (item.page in 0 until workspace.pages.size) {
@@ -166,29 +200,7 @@ class HomeActivity : ComponentActivity() {
                     if (appInfo != null) {
                         val appView = createAppView(appInfo, true)
                         page.placeView(appView, item.cellX, item.cellY)
-                        appView.setOnClickListener { launchApp(appInfo) }
-                        appView.setOnLongClickListener { showAppOptions(item, appInfo, page); true }
                     }
-                }
-            }
-            
-            for (p in 0 until workspace.pages.size) {
-                val page = workspace.pages[p]
-                page.setOnTouchListener { _, ev ->
-                    if (ev.action == android.view.MotionEvent.ACTION_UP) {
-                        val cellWidth = page.cellWidth
-                        val cellHeight = page.cellHeight
-                        if (cellWidth > 0 && cellHeight > 0) {
-                            val cellX = (ev.x / cellWidth).toInt()
-                            val cellY = (ev.y / cellHeight).toInt()
-                            if (cellX in 0 until page.columnCount && cellY in 0 until page.rowCount) {
-                                if (!page.isOccupied(cellX, cellY)) {
-                                    showAppPicker(p, cellX, cellY, page)
-                                }
-                            }
-                        }
-                    }
-                    true
                 }
             }
         }
@@ -251,16 +263,17 @@ class HomeActivity : ComponentActivity() {
             .show()
     }
 
-    private fun showAppOptions(item: WorkspaceItem, resolveInfo: ResolveInfo, pageLayout: CellLayout) {
+    private fun showAppOptions(item: WorkspaceItem?, resolveInfo: ResolveInfo, pageLayout: CellLayout?) {
+        val options = if (item != null) arrayOf("App Info", "Remove from Home") else arrayOf("App Info")
         AlertDialog.Builder(this)
             .setTitle(resolveInfo.loadLabel(packageManager))
-            .setItems(arrayOf("App Info", "Remove from Home")) { _, which ->
+            .setItems(options) { _, which ->
                 if (which == 0) {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.parse("package:${item.packageName}")
+                        data = Uri.parse("package:${resolveInfo.activityInfo.packageName}")
                     }
                     startActivity(intent)
-                } else if (which == 1) {
+                } else if (which == 1 && item != null) {
                     scope.launch(Dispatchers.IO) {
                         LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().delete(item.id)
                         withContext(Dispatchers.Main) {

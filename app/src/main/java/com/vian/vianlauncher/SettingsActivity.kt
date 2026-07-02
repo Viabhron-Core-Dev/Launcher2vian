@@ -19,6 +19,8 @@ class SettingsActivity : ComponentActivity() {
 
     private val scope = CoroutineScope(Dispatchers.Main)
 
+    private lateinit var tvStorageStatus: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -27,6 +29,19 @@ class SettingsActivity : ComponentActivity() {
         findViewById<Button>(R.id.btn_view_logs).setOnClickListener {
             startActivity(android.content.Intent(this, LogViewerActivity::class.java))
         }
+
+        findViewById<Button>(R.id.btn_grant_storage).setOnClickListener {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = android.net.Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } else {
+                requestPermissions(arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.READ_EXTERNAL_STORAGE), 100)
+            }
+        }
+        
+        tvStorageStatus = findViewById(R.id.tv_storage_status)
 
         val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
 
@@ -99,6 +114,17 @@ class SettingsActivity : ComponentActivity() {
 
         val tvAbout = findViewById<TextView>(R.id.tv_about)
         tvAbout.text = "${getString(R.string.app_name)}\n${packageName}\nVersion ${BuildConfig.VERSION_NAME}"
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val isGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager()
+        } else {
+            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        tvStorageStatus.text = "Status: " + if (isGranted) "Granted" else "Not Granted"
+        tvStorageStatus.setTextColor(android.graphics.Color.parseColor(if (isGranted) "#00FF00" else "#FF0000"))
     }
 
     private fun setupSwitch(id: Int, name: String, setter: (Boolean) -> Unit) {
