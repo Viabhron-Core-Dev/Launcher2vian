@@ -24,6 +24,10 @@ class SettingsActivity : ComponentActivity() {
         setContentView(R.layout.activity_settings)
         AppLogger.d("SettingsActivity", "onCreate")
 
+        findViewById<Button>(R.id.btn_view_logs).setOnClickListener {
+            startActivity(android.content.Intent(this, LogViewerActivity::class.java))
+        }
+
         val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
 
         // Grid Settings

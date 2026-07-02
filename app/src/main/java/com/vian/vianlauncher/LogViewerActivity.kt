@@ -85,7 +85,9 @@ class LogViewerActivity : ComponentActivity() {
         currentFile = file
         scope.launch {
             val content = withContext(Dispatchers.IO) {
-                if (file.exists()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+                    "Storage permission not granted. Grant it in Settings to view logs."
+                } else if (file.exists()) {
                     file.readText()
                 } else {
                     "File not found: ${file.name}"
