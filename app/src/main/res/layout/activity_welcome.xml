@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#121212"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Welcome to Vian Launcher"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="To function correctly, Vian Launcher requires storage access for logging and saving configurations."
+        android:textColor="#DDDDDD"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="32dp" />
+
+    <Button
+        android:id="@+id/btn_grant_storage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Grant Storage Permission"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btn_set_default"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Set as Default Launcher"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btn_finish_setup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Continue to Home" />
+
+</LinearLayout>

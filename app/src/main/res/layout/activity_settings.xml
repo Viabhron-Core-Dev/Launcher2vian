@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Grid Settings"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Columns (3-6)"
+                android:textColor="#DDDDDD" />
+            <Spinner
+                android:id="@+id/spin_columns"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Rows (4-8)"
+                android:textColor="#DDDDDD" />
+            <Spinner
+                android:id="@+id/spin_rows"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Icon Settings"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Icon Size"
+                android:textColor="#DDDDDD" />
+            <Spinner
+                android:id="@+id/spin_icon_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_clear_home"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Clear Home Screen"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Modules"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_sidebar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sidebar (Phase 3)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_netspeed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Net Speed (Phase 4)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_callrecorder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Call Recorder (Phase 5)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_epub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="EPUB Reader (Phase 6)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_apptracker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="App Tracker (Phase 7)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_pwaloader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="PWA Loader (Phase 8)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_llmservice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="LLM Service (Phase 9)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="8dp" />
+
+        <Switch
+            android:id="@+id/switch_scheduler"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Scheduler (Phase 14)"
+            android:textColor="#DDDDDD"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:id="@+id/tv_about"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="About"
+            android:textColor="#888888"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+    </LinearLayout>
+</ScrollView>
