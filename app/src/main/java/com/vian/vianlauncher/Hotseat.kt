@@ -29,7 +29,7 @@ class Hotseat(
         removeAllViews()
         for (i in 0 until 5) {
             val slot = FrameLayout(context).apply {
-                layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f)
+                layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
             }
             addView(slot)
         }

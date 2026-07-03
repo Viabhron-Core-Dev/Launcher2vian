@@ -25,7 +25,8 @@ class Workspace(
         override fun onSingleTapUp(e: MotionEvent): Boolean {
             val page = pages.getOrNull(currentPage) ?: return false
             if (page.cellWidth > 0 && page.cellHeight > 0) {
-                val cellX = (e.x / page.cellWidth).toInt()
+                val xOnPage = e.x - scrollX
+                val cellX = (xOnPage / page.cellWidth).toInt()
                 val cellY = (e.y / page.cellHeight).toInt()
                 onCellTap?.invoke(currentPage, cellX, cellY)
             }
@@ -33,9 +34,11 @@ class Workspace(
         }
 
         override fun onLongPress(e: MotionEvent) {
+            AppLogger.d("Workspace", "onLongPress at ${e.x}, ${e.y}")
             val page = pages.getOrNull(currentPage) ?: return
             if (page.cellWidth > 0 && page.cellHeight > 0) {
-                val cellX = (e.x / page.cellWidth).toInt()
+                val xOnPage = e.x - scrollX
+                val cellX = (xOnPage / page.cellWidth).toInt()
                 val cellY = (e.y / page.cellHeight).toInt()
                 onCellLongPress?.invoke(currentPage, cellX, cellY)
             }
@@ -85,7 +88,10 @@ class Workspace(
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        return true
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            gestureDetector.onTouchEvent(ev)
+        }
+        return false
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {

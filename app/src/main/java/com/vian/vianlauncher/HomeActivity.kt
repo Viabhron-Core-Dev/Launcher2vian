@@ -146,6 +146,10 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
     private fun rebuildWorkspaceAndHotseat() {
         workspace.setup(lastGridCols, lastGridRows)
         setupPageIndicator(workspace.pages.size)
@@ -156,10 +160,17 @@ class HomeActivity : ComponentActivity() {
         val drawerToggle = ImageView(this).apply {
             setImageResource(android.R.drawable.ic_menu_sort_by_size)
             setOnClickListener { openDrawer() }
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            val size = dpToPx(56)
+            layoutParams = ViewGroup.LayoutParams(size, size)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
         }
-        hotseat.placeView(drawerToggle, 2, 0)
+        val drawerContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            addView(drawerToggle)
+        }
+        hotseat.placeView(drawerContainer, 2, 0)
         
         scope.launch {
             val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
@@ -175,7 +186,7 @@ class HomeActivity : ComponentActivity() {
                 if (i < resolveInfos.size) {
                     if (hotseatIndex == 2) hotseatIndex++
                     val appInfo = resolveInfos[i]
-                    val appView = createAppView(appInfo, false)
+                    val appView = createAppView(appInfo, true)
                     hotseat.placeView(appView, hotseatIndex, 0)
                     appView.setOnClickListener { launchApp(appInfo) }
                     appView.setOnLongClickListener { 
@@ -210,12 +221,13 @@ class HomeActivity : ComponentActivity() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            setPadding(8, 8, 8, 8)
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setPadding(4, 4, 4, 4)
         }
         val icon = ImageView(this).apply {
             setImageDrawable(resolveInfo.loadIcon(packageManager))
-            layoutParams = LinearLayout.LayoutParams(120, 120)
+            val size = dpToPx(56)
+            layoutParams = LinearLayout.LayoutParams(size, size)
             scaleType = ImageView.ScaleType.FIT_CENTER
         }
         container.addView(icon)
@@ -224,12 +236,12 @@ class HomeActivity : ComponentActivity() {
             val label = TextView(this).apply {
                 text = resolveInfo.loadLabel(packageManager)
                 setTextColor(Color.parseColor("#FFFFFF"))
-                textSize = 12f
+                textSize = 10f
                 gravity = Gravity.CENTER
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                    topMargin = 8
+                    topMargin = 4
                 }
             }
             container.addView(label)

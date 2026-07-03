@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.vian.vianlauncher"
     compileSdk = 35
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.vian.vianlauncher"
