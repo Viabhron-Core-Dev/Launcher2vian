@@ -190,7 +190,7 @@ class HomeActivity : ComponentActivity() {
                 if (i < resolveInfos.size) {
                     if (hotseatIndex == 2) hotseatIndex++
                     val appInfo = resolveInfos[i]
-                    val appView = createAppView(appInfo, true)
+                    val appView = createAppView(appInfo, false)
                     hotseat.placeView(appView, hotseatIndex, 0)
                     appView.setOnClickListener { launchApp(appInfo) }
                     appView.setOnLongClickListener { 
@@ -213,7 +213,7 @@ class HomeActivity : ComponentActivity() {
                     val page = workspace.pages[item.page]
                     val appInfo = resolveInfos.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
                     if (appInfo != null) {
-                        val appView = createAppView(appInfo, true)
+                        val appView = createAppView(appInfo, false)
                         page.placeView(appView, item.cellX, item.cellY)
                     }
                 }
