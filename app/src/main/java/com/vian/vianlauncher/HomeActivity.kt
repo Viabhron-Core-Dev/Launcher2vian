@@ -105,8 +105,6 @@ class HomeActivity : ComponentActivity() {
                     val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
                     if (appInfo != null) launchApp(appInfo)
                 }
-            } else {
-                showAppPicker(page, cellX, cellY, pageLayout)
             }
         }
 
@@ -114,13 +112,17 @@ class HomeActivity : ComponentActivity() {
             val pageLayout = workspace.pages.getOrNull(page)
             val isOccupied = pageLayout?.isOccupied(cellX, cellY) ?: false
             AppLogger.d("HomeActivity", "onCellLongPress received: page=$page cellX=$cellX cellY=$cellY, occupied=$isOccupied")
-            if (pageLayout != null && isOccupied) {
-                val item = currentWorkspaceItems.find { it.page == page && it.cellX == cellX && it.cellY == cellY }
-                AppLogger.d("HomeActivity", "Found item for long press: $item")
-                if (item != null) {
-                    val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
-                    AppLogger.d("HomeActivity", "Found appInfo for long press: $appInfo")
-                    if (appInfo != null) showAppOptions(item, appInfo, pageLayout)
+            if (pageLayout != null) {
+                if (isOccupied) {
+                    val item = currentWorkspaceItems.find { it.page == page && it.cellX == cellX && it.cellY == cellY }
+                    AppLogger.d("HomeActivity", "Found item for long press: $item")
+                    if (item != null) {
+                        val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                        AppLogger.d("HomeActivity", "Found appInfo for long press: $appInfo")
+                        if (appInfo != null) showAppOptions(item, appInfo, pageLayout)
+                    }
+                } else {
+                    showAppPicker(page, cellX, cellY, pageLayout)
                 }
             }
         }

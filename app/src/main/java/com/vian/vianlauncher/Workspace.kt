@@ -30,7 +30,9 @@ class Workspace(
                 val xOnPage = absoluteX - pageStartX
                 val cellX = (xOnPage / page.cellWidth).toInt()
                 val cellY = (e.y / page.cellHeight).toInt()
-                onCellTap?.invoke(currentPage, cellX, cellY)
+                if (page.isOccupied(cellX, cellY)) {
+                    onCellTap?.invoke(currentPage, cellX, cellY)
+                }
             }
             return true
         }
