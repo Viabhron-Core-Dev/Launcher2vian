@@ -43,6 +43,8 @@ class HomeActivity : ComponentActivity() {
     private lateinit var workspace: Workspace
     private lateinit var hotseat: Hotseat
     private lateinit var pageIndicator: LinearLayout
+    private lateinit var dragLayer: DragLayer
+    private lateinit var dragController: DragController
     
     private var lastGridCols = 4
     private var lastGridRows = 5
@@ -63,6 +65,10 @@ class HomeActivity : ComponentActivity() {
         drawerOverlay = findViewById(R.id.app_drawer_overlay)
         appGrid = findViewById(R.id.rv_app_grid)
         searchInput = findViewById(R.id.et_search_apps)
+        
+        dragLayer = findViewById(R.id.drag_layer)
+        dragController = DragController(this, workspace, hotseat, dragLayer)
+        dragLayer.dragController = dragController
         
         val btnSettings: Button = findViewById(R.id.btn_settings)
 
@@ -119,7 +125,16 @@ class HomeActivity : ComponentActivity() {
                     if (item != null) {
                         val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
                         AppLogger.d("HomeActivity", "Found appInfo for long press: $appInfo")
-                        if (appInfo != null) showAppOptions(item, appInfo, pageLayout)
+                        var targetView: View? = null
+                        for (i in 0 until pageLayout.childCount) {
+                            val child = pageLayout.getChildAt(i)
+                            val info = child.tag as? CellInfo
+                            if (info?.cellX == cellX && info?.cellY == cellY) {
+                                targetView = child
+                                break
+                            }
+                        }
+                        if (appInfo != null) showAppOptions(item, appInfo, pageLayout, targetView)
                     }
                 } else {
                     showAppPicker(page, cellX, cellY, pageLayout)
@@ -196,7 +211,7 @@ class HomeActivity : ComponentActivity() {
                     hotseat.placeView(appView, hotseatIndex, 0)
                     appView.setOnClickListener { launchApp(appInfo) }
                     appView.setOnLongClickListener { 
-                        showAppOptions(null, appInfo, null)
+                        showAppOptions(null, appInfo, null, appView)
                         true 
                     }
                     hotseatPackages.add(appInfo.activityInfo.packageName)
@@ -281,22 +296,34 @@ class HomeActivity : ComponentActivity() {
             .show()
     }
 
-    private fun showAppOptions(item: WorkspaceItem?, resolveInfo: ResolveInfo, pageLayout: CellLayout?) {
-        val options = if (item != null) arrayOf("App Info", "Remove from Home") else arrayOf("App Info")
+    private fun showAppOptions(item: WorkspaceItem?, resolveInfo: ResolveInfo, pageLayout: CellLayout?, view: View? = null) {
+        val options = if (item != null) arrayOf("App Info", "Remove from Home", "Move") else arrayOf("App Info", "Move")
         AlertDialog.Builder(this)
             .setTitle(resolveInfo.loadLabel(packageManager))
             .setItems(options) { _, which ->
-                if (which == 0) {
+                val option = options[which]
+                if (option == "App Info") {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                         data = Uri.parse("package:${resolveInfo.activityInfo.packageName}")
                     }
                     startActivity(intent)
-                } else if (which == 1 && item != null) {
+                } else if (option == "Remove from Home" && item != null) {
                     scope.launch(Dispatchers.IO) {
                         LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().delete(item.id)
                         withContext(Dispatchers.Main) {
                             rebuildWorkspaceAndHotseat()
                         }
+                    }
+                } else if (option == "Move" && view != null) {
+                    val isHotseat = item == null
+                    if (isHotseat) {
+                        val slot = view.parent as? View
+                        val index = if (slot != null) hotseat.indexOfChild(slot) else -1
+                        if (index != -1) {
+                            dragController.startDrag(view, null, -1, index, 0, true)
+                        }
+                    } else {
+                        dragController.startDrag(view, item, item.page, item.cellX, item.cellY, false)
                     }
                 }
             }
