@@ -117,7 +117,12 @@ class Workspace(
     }
 
     fun scrollToPage(pageIndex: Int) {
-        val newPage = pageIndex.coerceIn(0, maxOf(0, pages.size - 1))
+        if (pages.isEmpty()) return
+        val newPage = when {
+            pageIndex < 0 -> pages.size - 1
+            pageIndex >= pages.size -> 0
+            else -> pageIndex
+        }
         if (newPage != currentPage) {
             currentPage = newPage
             AppLogger.d("Workspace", "Page changed to: $currentPage")
