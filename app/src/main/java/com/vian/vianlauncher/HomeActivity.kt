@@ -393,6 +393,16 @@ class HomeActivity : ComponentActivity() {
         drawerOverlay.visibility = View.INVISIBLE
     }
 
+    fun refreshWorkspaceItemsList() {
+        scope.launch(Dispatchers.IO) {
+            val items = LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
+            withContext(Dispatchers.Main) {
+                currentWorkspaceItems = items
+                AppLogger.d("HomeActivity", "Refreshed currentWorkspaceItems, count=${items.size}")
+            }
+        }
+    }
+
     private fun launchApp(resolveInfo: ResolveInfo) {
         try {
             val intent = packageManager.getLaunchIntentForPackage(resolveInfo.activityInfo.packageName)

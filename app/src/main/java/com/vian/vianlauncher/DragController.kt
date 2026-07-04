@@ -105,6 +105,9 @@ class DragController(
                     CoroutineScope(Dispatchers.IO).launch {
                         LauncherDatabase.getDatabase(activity).workspaceDao().update(updatedItem)
                         AppLogger.d("DragController", "Successful move to page $currentPage cell($targetCellX, $targetCellY)")
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            activity.refreshWorkspaceItemsList()
+                        }
                     }
                 } else if (isHotseatItem) {
                     AppLogger.d("DragController", "Successful move to page $currentPage cell($targetCellX, $targetCellY) from Hotseat")
