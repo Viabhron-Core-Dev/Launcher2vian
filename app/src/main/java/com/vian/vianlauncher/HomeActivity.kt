@@ -106,8 +106,12 @@ class HomeActivity : ComponentActivity() {
         workspace.onCellTap = { page, cellX, cellY ->
             val pageLayout = workspace.pages[page]
             if (pageLayout.isOccupied(cellX, cellY)) {
-                val item = currentWorkspaceItems.find { it.page == page && it.cellX == cellX && it.cellY == cellY }
-                if (item != null) {
+                val item = currentWorkspaceItems.find { 
+                    it.page == page && 
+                    cellX >= it.cellX && cellX < it.cellX + it.spanX &&
+                    cellY >= it.cellY && cellY < it.cellY + it.spanY 
+                }
+                if (item != null && item.packageName != "__CLOCK_WIDGET__") {
                     val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
                     if (appInfo != null) launchApp(appInfo)
                 }
@@ -120,21 +124,29 @@ class HomeActivity : ComponentActivity() {
             AppLogger.d("HomeActivity", "onCellLongPress received: page=$page cellX=$cellX cellY=$cellY, occupied=$isOccupied")
             if (pageLayout != null) {
                 if (isOccupied) {
-                    val item = currentWorkspaceItems.find { it.page == page && it.cellX == cellX && it.cellY == cellY }
+                    val item = currentWorkspaceItems.find { 
+                        it.page == page && 
+                        cellX >= it.cellX && cellX < it.cellX + it.spanX &&
+                        cellY >= it.cellY && cellY < it.cellY + it.spanY 
+                    }
                     AppLogger.d("HomeActivity", "Found item for long press: $item")
                     if (item != null) {
-                        val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
-                        AppLogger.d("HomeActivity", "Found appInfo for long press: $appInfo")
-                        var targetView: View? = null
-                        for (i in 0 until pageLayout.childCount) {
-                            val child = pageLayout.getChildAt(i)
-                            val info = child.tag as? CellInfo
-                            if (info?.cellX == cellX && info?.cellY == cellY) {
-                                targetView = child
-                                break
+                        if (item.packageName == "__CLOCK_WIDGET__") {
+                            showClockOptions(item)
+                        } else {
+                            val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                            AppLogger.d("HomeActivity", "Found appInfo for long press: $appInfo")
+                            var targetView: View? = null
+                            for (i in 0 until pageLayout.childCount) {
+                                val child = pageLayout.getChildAt(i)
+                                val info = child.tag as? CellInfo
+                                if (info?.cellX == item.cellX && info?.cellY == item.cellY) {
+                                    targetView = child
+                                    break
+                                }
                             }
+                            if (appInfo != null) showAppOptions(item, appInfo, pageLayout, targetView)
                         }
-                        if (appInfo != null) showAppOptions(item, appInfo, pageLayout, targetView)
                     }
                 } else {
                     showAppPicker(page, cellX, cellY, pageLayout)
@@ -220,18 +232,44 @@ class HomeActivity : ComponentActivity() {
             }
             AppLogger.d("Hotseat", "Populated with packages: $hotseatPackages")
             
-            val items = withContext(Dispatchers.IO) {
+            var items = withContext(Dispatchers.IO) {
                 LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
             }
+            
+            val hasClock = items.any { it.packageName == "__CLOCK_WIDGET__" }
+            if (!hasClock) {
+                val clockItem = WorkspaceItem(
+                    packageName = "__CLOCK_WIDGET__",
+                    activityName = "",
+                    cellX = 0,
+                    cellY = 0,
+                    spanX = 4,
+                    spanY = 2,
+                    page = 0,
+                    container = 0
+                )
+                withContext(Dispatchers.IO) {
+                    LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().insert(clockItem)
+                }
+                items = withContext(Dispatchers.IO) {
+                    LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
+                }
+            }
+            
             currentWorkspaceItems = items
             
             for (item in items) {
                 if (item.page in 0 until workspace.pages.size) {
                     val page = workspace.pages[item.page]
-                    val appInfo = resolveInfos.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
-                    if (appInfo != null) {
-                        val appView = createAppView(appInfo, false)
-                        page.placeView(appView, item.cellX, item.cellY)
+                    if (item.packageName == "__CLOCK_WIDGET__") {
+                        val clockView = ClockWidgetView(this@HomeActivity)
+                        page.placeView(clockView, item.cellX, item.cellY, item.spanX, item.spanY)
+                    } else {
+                        val appInfo = resolveInfos.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                        if (appInfo != null) {
+                            val appView = createAppView(appInfo, false)
+                            page.placeView(appView, item.cellX, item.cellY, item.spanX, item.spanY)
+                        }
                     }
                 }
             }
@@ -268,6 +306,23 @@ class HomeActivity : ComponentActivity() {
             container.addView(label)
         }
         return container
+    }
+
+    private fun showClockOptions(item: WorkspaceItem) {
+        val options = arrayOf("Remove from Home")
+        AlertDialog.Builder(this)
+            .setTitle("Clock Widget")
+            .setItems(options) { _, which ->
+                if (options[which] == "Remove from Home") {
+                    scope.launch(Dispatchers.IO) {
+                        LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().delete(item.id)
+                        withContext(Dispatchers.Main) {
+                            rebuildWorkspaceAndHotseat()
+                        }
+                    }
+                }
+            }
+            .show()
     }
 
     private fun showAppPicker(pageIndex: Int, cellX: Int, cellY: Int, pageLayout: CellLayout) {

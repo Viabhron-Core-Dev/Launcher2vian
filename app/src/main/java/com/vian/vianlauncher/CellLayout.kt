@@ -33,6 +33,12 @@ class CellLayout(
         for (i in 0 until childCount) {
             val child = getChildAt(i)
             if (child.visibility != View.GONE) {
+                val cellInfo = child.tag as? CellInfo
+                val spanX = cellInfo?.spanX ?: 1
+                val spanY = cellInfo?.spanY ?: 1
+                
+                val childWidthSpec = MeasureSpec.makeMeasureSpec(cellWidth * spanX, MeasureSpec.EXACTLY)
+                val childHeightSpec = MeasureSpec.makeMeasureSpec(cellHeight * spanY, MeasureSpec.EXACTLY)
                 child.measure(childWidthSpec, childHeightSpec)
             }
         }
@@ -46,39 +52,54 @@ class CellLayout(
             if (child.visibility != View.GONE) {
                 val cellInfo = child.tag as? CellInfo
                 if (cellInfo != null) {
+                    val spanX = cellInfo.spanX
+                    val spanY = cellInfo.spanY
                     val left = cellInfo.cellX * cellWidth
                     val top = cellInfo.cellY * cellHeight
-                    child.layout(left, top, left + cellWidth, top + cellHeight)
+                    child.layout(left, top, left + cellWidth * spanX, top + cellHeight * spanY)
                 }
             }
         }
     }
 
-    fun placeView(view: View, cellX: Int, cellY: Int) {
-        if (cellX !in 0 until columnCount || cellY !in 0 until rowCount) {
-            AppLogger.e("CellLayout", "Rejected out-of-range placement: cellX=$cellX, cellY=$cellY")
+    fun placeView(view: View, cellX: Int, cellY: Int, spanX: Int = 1, spanY: Int = 1) {
+        if (cellX < 0 || cellX + spanX > columnCount || cellY < 0 || cellY + spanY > rowCount) {
+            AppLogger.e("CellLayout", "Rejected out-of-range placement: cellX=$cellX, cellY=$cellY, spanX=$spanX, spanY=$spanY")
             return
         }
-        AppLogger.d("CellLayout", "Placed view at cellX=$cellX, cellY=$cellY")
-        view.tag = CellInfo(cellX, cellY)
+        AppLogger.d("CellLayout", "Placed view at cellX=$cellX, cellY=$cellY, spanX=$spanX, spanY=$spanY")
+        view.tag = CellInfo(cellX, cellY, spanX, spanY)
         addView(view)
-        occupyCell(cellX, cellY)
+        occupyCell(cellX, cellY, spanX, spanY)
     }
 
-    fun isOccupied(cellX: Int, cellY: Int): Boolean {
-        if (cellX !in 0 until columnCount || cellY !in 0 until rowCount) return true
-        return occupancyMap[cellX][cellY]
+    fun isOccupied(cellX: Int, cellY: Int, spanX: Int = 1, spanY: Int = 1): Boolean {
+        if (cellX < 0 || cellX + spanX > columnCount || cellY < 0 || cellY + spanY > rowCount) return true
+        for (x in cellX until cellX + spanX) {
+            for (y in cellY until cellY + spanY) {
+                if (occupancyMap[x][y]) return true
+            }
+        }
+        return false
     }
 
-    fun occupyCell(cellX: Int, cellY: Int) {
-        if (cellX in 0 until columnCount && cellY in 0 until rowCount) {
-            occupancyMap[cellX][cellY] = true
+    fun occupyCell(cellX: Int, cellY: Int, spanX: Int = 1, spanY: Int = 1) {
+        if (cellX >= 0 && cellX + spanX <= columnCount && cellY >= 0 && cellY + spanY <= rowCount) {
+            for (x in cellX until cellX + spanX) {
+                for (y in cellY until cellY + spanY) {
+                    occupancyMap[x][y] = true
+                }
+            }
         }
     }
 
-    fun vacateCell(cellX: Int, cellY: Int) {
-        if (cellX in 0 until columnCount && cellY in 0 until rowCount) {
-            occupancyMap[cellX][cellY] = false
+    fun vacateCell(cellX: Int, cellY: Int, spanX: Int = 1, spanY: Int = 1) {
+        if (cellX >= 0 && cellX + spanX <= columnCount && cellY >= 0 && cellY + spanY <= rowCount) {
+            for (x in cellX until cellX + spanX) {
+                for (y in cellY until cellY + spanY) {
+                    occupancyMap[x][y] = false
+                }
+            }
         }
     }
 }
