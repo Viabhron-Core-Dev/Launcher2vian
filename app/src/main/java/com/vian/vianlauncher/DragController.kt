@@ -84,6 +84,9 @@ class DragController(
             val spanX = cellInfo?.spanX ?: 1
             val spanY = cellInfo?.spanY ?: 1
 
+            val oldPage = if (!isHotseatItem) workspace.pages.getOrNull(fromPage) else null
+            oldPage?.vacateCell(fromCellX, fromCellY, spanX, spanY)
+
             AppLogger.d("DragController", "resolveDrop attempt at target position: page $currentPage cell($targetCellX, $targetCellY), occupied=${page.isOccupied(targetCellX, targetCellY, spanX, spanY)}")
 
             if (targetCellX >= 0 && targetCellX + spanX <= page.columnCount && 
@@ -91,8 +94,6 @@ class DragController(
                 !page.isOccupied(targetCellX, targetCellY, spanX, spanY)) {
                 
                 if (!isHotseatItem) {
-                    val oldPage = workspace.pages.getOrNull(fromPage)
-                    oldPage?.vacateCell(fromCellX, fromCellY, spanX, spanY)
                     oldPage?.removeView(view)
                 } else {
                     val slot = hotseat.getChildAt(fromCellX) as? android.widget.FrameLayout
@@ -121,6 +122,7 @@ class DragController(
                 }
                 dropped = true
             } else {
+                oldPage?.occupyCell(fromCellX, fromCellY, spanX, spanY)
                 AppLogger.d("DragController", "Rejected drop: cell is occupied or out of bounds")
             }
         } else {
