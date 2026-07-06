@@ -77,12 +77,15 @@ class DragController(
             val absoluteX = xInWorkspace + workspace.scrollX
             val pageStartX = currentPage * workspace.width
             val xOnPage = absoluteX - pageStartX
-            val targetCellX = (xOnPage / page.cellWidth).toInt()
-            val targetCellY = (yInWorkspace / page.cellHeight).toInt()
+            var targetCellX = (xOnPage / page.cellWidth).toInt()
+            var targetCellY = (yInWorkspace / page.cellHeight).toInt()
             
             val cellInfo = view.tag as? CellInfo
             val spanX = cellInfo?.spanX ?: 1
             val spanY = cellInfo?.spanY ?: 1
+
+            targetCellX = targetCellX.coerceIn(0, Math.max(0, page.columnCount - spanX))
+            targetCellY = targetCellY.coerceIn(0, Math.max(0, page.rowCount - spanY))
 
             val oldPage = if (!isHotseatItem) workspace.pages.getOrNull(fromPage) else null
             oldPage?.vacateCell(fromCellX, fromCellY, spanX, spanY)
