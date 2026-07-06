@@ -113,12 +113,12 @@ class Workspace(
         return true
     }
 
-    fun setup(columns: Int, rows: Int) {
-        AppLogger.d("Workspace", "Setup with columns=$columns, rows=$rows")
+    fun setup(columns: Int, rows: Int, pagesCount: Int = 3) {
+        AppLogger.d("Workspace", "Setup with columns=$columns, rows=$rows, pages=$pagesCount")
         removeAllViews()
         pages.clear()
 
-        for (i in 0..2) {
+        for (i in 0 until pagesCount) {
             val page = CellLayout(context, columns, rows)
             pages.add(page)
             addView(page)

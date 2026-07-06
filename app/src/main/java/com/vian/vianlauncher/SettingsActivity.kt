@@ -73,6 +73,19 @@ class SettingsActivity : ComponentActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        val spinPages = findViewById<Spinner>(R.id.spin_pages)
+        val pageAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("1", "2", "3", "4", "5"))
+        spinPages.adapter = pageAdapter
+        spinPages.setSelection(prefs.getInt("grid_pages", 3) - 1)
+        spinPages.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val value = position + 1
+                prefs.edit().putInt("grid_pages", value).apply()
+                AppLogger.d("SettingsActivity", "Set grid pages: $value")
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         // Icon Size
         val spinIconSize = findViewById<Spinner>(R.id.spin_icon_size)
         val sizes = listOf("Small", "Medium", "Large")
@@ -118,6 +131,12 @@ class SettingsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
+        findViewById<Spinner>(R.id.spin_columns).setSelection(prefs.getInt("grid_cols", 4) - 3)
+        findViewById<Spinner>(R.id.spin_rows).setSelection(prefs.getInt("grid_rows", 5) - 4)
+        findViewById<Spinner>(R.id.spin_pages).setSelection(prefs.getInt("grid_pages", 3) - 1)
+        findViewById<Spinner>(R.id.spin_icon_size).setSelection(prefs.getInt("icon_size", 1))
+
         val isGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             android.os.Environment.isExternalStorageManager()
         } else {

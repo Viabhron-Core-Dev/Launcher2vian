@@ -48,6 +48,7 @@ class HomeActivity : ComponentActivity() {
     
     private var lastGridCols = 4
     private var lastGridRows = 5
+    private var lastGridPages = 3
     
     private var allAppsList = listOf<ResolveInfo>()
     private var currentWorkspaceItems = listOf<WorkspaceItem>()
@@ -171,32 +172,84 @@ class HomeActivity : ComponentActivity() {
         val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
         val cols = prefs.getInt("grid_cols", 4)
         val rows = prefs.getInt("grid_rows", 5)
+        val pages = prefs.getInt("grid_pages", 3)
         
         if (isFirstResume) {
             isFirstResume = false
             lastGridCols = cols
             lastGridRows = rows
+            lastGridPages = pages
             scope.launch(Dispatchers.IO) {
                 migrateClockPosition(rows, cols)
                 withContext(Dispatchers.Main) {
                     rebuildWorkspaceAndHotseat()
                 }
             }
-        } else if (cols != lastGridCols || rows != lastGridRows) {
-            AppLogger.d("HomeActivity", "Grid size changed, updating layout")
-            lastGridCols = cols
-            lastGridRows = rows
+        } else if (cols != lastGridCols || rows != lastGridRows || pages != lastGridPages) {
+            AppLogger.d("HomeActivity", "Grid size or pages changed, updating layout")
+            
             scope.launch(Dispatchers.IO) {
-                migrateClockPosition(rows, cols)
                 val db = LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao()
                 val items = db.getAllForContainer(0)
+                
+                var itemsLost = 0
                 for (item in items) {
-                    if (item.packageName != "__CLOCK_WIDGET__" && (item.cellX >= cols || item.cellY >= rows)) {
-                        db.delete(item.id)
+                    val outOfBounds = item.packageName != "__CLOCK_WIDGET__" && (item.cellX >= cols || item.cellY >= rows)
+                    val removedPage = item.page >= pages
+                    if (outOfBounds || removedPage) {
+                        itemsLost++
                     }
                 }
+                
                 withContext(Dispatchers.Main) {
-                    rebuildWorkspaceAndHotseat()
+                    if (itemsLost > 0) {
+                        AlertDialog.Builder(this@HomeActivity)
+                            .setTitle("Grid Size Reduced")
+                            .setMessage("Shrinking the grid or page count will delete $itemsLost item(s) that no longer fit. Continue?")
+                            .setPositiveButton("Confirm") { _, _ ->
+                                lastGridCols = cols
+                                lastGridRows = rows
+                                lastGridPages = pages
+                                scope.launch(Dispatchers.IO) {
+                                    for (item in items) {
+                                        val outOfBounds = item.packageName != "__CLOCK_WIDGET__" && (item.cellX >= cols || item.cellY >= rows)
+                                        val removedPage = item.page >= pages
+                                        if (outOfBounds || removedPage) {
+                                            db.delete(item.id)
+                                        }
+                                    }
+                                    migrateClockPosition(rows, cols)
+                                    withContext(Dispatchers.Main) {
+                                        rebuildWorkspaceAndHotseat()
+                                    }
+                                }
+                            }
+                            .setNegativeButton("Cancel") { _, _ ->
+                                prefs.edit()
+                                    .putInt("grid_cols", lastGridCols)
+                                    .putInt("grid_rows", lastGridRows)
+                                    .putInt("grid_pages", lastGridPages)
+                                    .apply()
+                            }
+                            .show()
+                    } else {
+                        lastGridCols = cols
+                        lastGridRows = rows
+                        lastGridPages = pages
+                        scope.launch(Dispatchers.IO) {
+                            for (item in items) {
+                                val outOfBounds = item.packageName != "__CLOCK_WIDGET__" && (item.cellX >= cols || item.cellY >= rows)
+                                val removedPage = item.page >= pages
+                                if (outOfBounds || removedPage) {
+                                    db.delete(item.id)
+                                }
+                            }
+                            migrateClockPosition(rows, cols)
+                            withContext(Dispatchers.Main) {
+                                rebuildWorkspaceAndHotseat()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -262,7 +315,7 @@ class HomeActivity : ComponentActivity() {
     }
 
     private fun rebuildWorkspaceAndHotseat() {
-        workspace.setup(lastGridCols, lastGridRows)
+        workspace.setup(lastGridCols, lastGridRows, lastGridPages)
         setupPageIndicator(workspace.pages.size)
         updatePageIndicator(workspace.currentPage)
         
