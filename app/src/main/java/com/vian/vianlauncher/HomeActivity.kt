@@ -111,9 +111,20 @@ class HomeActivity : ComponentActivity() {
                     cellX >= it.cellX && cellX < it.cellX + it.spanX &&
                     cellY >= it.cellY && cellY < it.cellY + it.spanY 
                 }
-                if (item != null && item.packageName != "__CLOCK_WIDGET__") {
-                    val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
-                    if (appInfo != null) launchApp(appInfo)
+                if (item != null) {
+                    if (item.packageName == "__CLOCK_WIDGET__") {
+                        for (i in 0 until pageLayout.childCount) {
+                            val child = pageLayout.getChildAt(i)
+                            val info = child.tag as? CellInfo
+                            if (info?.cellX == item.cellX && info?.cellY == item.cellY && child is ClockWidgetView) {
+                                child.launchClockApp()
+                                break
+                            }
+                        }
+                    } else {
+                        val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                        if (appInfo != null) launchApp(appInfo)
+                    }
                 }
             }
         }
@@ -131,20 +142,20 @@ class HomeActivity : ComponentActivity() {
                     }
                     AppLogger.d("HomeActivity", "Found item for long press: $item")
                     if (item != null) {
+                        var targetView: View? = null
+                        for (i in 0 until pageLayout.childCount) {
+                            val child = pageLayout.getChildAt(i)
+                            val info = child.tag as? CellInfo
+                            if (info?.cellX == item.cellX && info?.cellY == item.cellY) {
+                                targetView = child
+                                break
+                            }
+                        }
                         if (item.packageName == "__CLOCK_WIDGET__") {
-                            showClockOptions(item)
+                            showClockOptions(item, pageLayout, targetView)
                         } else {
                             val appInfo = allAppsList.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
                             AppLogger.d("HomeActivity", "Found appInfo for long press: $appInfo")
-                            var targetView: View? = null
-                            for (i in 0 until pageLayout.childCount) {
-                                val child = pageLayout.getChildAt(i)
-                                val info = child.tag as? CellInfo
-                                if (info?.cellX == item.cellX && info?.cellY == item.cellY) {
-                                    targetView = child
-                                    break
-                                }
-                            }
                             if (appInfo != null) showAppOptions(item, appInfo, pageLayout, targetView)
                         }
                     }
@@ -165,15 +176,82 @@ class HomeActivity : ComponentActivity() {
             isFirstResume = false
             lastGridCols = cols
             lastGridRows = rows
-            rebuildWorkspaceAndHotseat()
+            scope.launch(Dispatchers.IO) {
+                migrateClockPosition(rows, cols)
+                withContext(Dispatchers.Main) {
+                    rebuildWorkspaceAndHotseat()
+                }
+            }
         } else if (cols != lastGridCols || rows != lastGridRows) {
-            AppLogger.d("HomeActivity", "Grid size changed, clearing workspace")
+            AppLogger.d("HomeActivity", "Grid size changed, updating layout")
             lastGridCols = cols
             lastGridRows = rows
             scope.launch(Dispatchers.IO) {
-                LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().clearContainer(0)
+                migrateClockPosition(rows, cols)
+                val db = LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao()
+                val items = db.getAllForContainer(0)
+                for (item in items) {
+                    if (item.packageName != "__CLOCK_WIDGET__" && (item.cellX >= cols || item.cellY >= rows)) {
+                        db.delete(item.id)
+                    }
+                }
                 withContext(Dispatchers.Main) {
                     rebuildWorkspaceAndHotseat()
+                }
+            }
+        }
+    }
+
+    private fun findValidClockPosition(rows: Int, cols: Int, page: Int, existingItems: List<WorkspaceItem>): Pair<Int, Int>? {
+        val spanX = 4
+        val spanY = 2
+        
+        if (spanX > cols || spanY > rows) return null
+        
+        val itemsOnPage = existingItems.filter { it.page == page && it.packageName != "__CLOCK_WIDGET__" }
+        
+        fun isOccupied(x: Int, y: Int): Boolean {
+            for (item in itemsOnPage) {
+                val itemSpanX = item.spanX
+                val itemSpanY = item.spanY
+                val overlapX = x < item.cellX + itemSpanX && x + spanX > item.cellX
+                val overlapY = y < item.cellY + itemSpanY && y + spanY > item.cellY
+                if (overlapX && overlapY) return true
+            }
+            return false
+        }
+
+        val defaultY = Math.max(0, rows - 3)
+        val defaultX = 0
+        if (defaultX + spanX <= cols && defaultY + spanY <= rows && !isOccupied(defaultX, defaultY)) {
+            return Pair(defaultX, defaultY)
+        }
+        
+        for (y in 0 .. rows - spanY) {
+            for (x in 0 .. cols - spanX) {
+                if (!isOccupied(x, y)) {
+                    return Pair(x, y)
+                }
+            }
+        }
+        
+        return null
+    }
+
+    private suspend fun migrateClockPosition(rows: Int, cols: Int) {
+        val db = LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao()
+        val items = db.getAllForContainer(0)
+        val clockItem = items.find { it.packageName == "__CLOCK_WIDGET__" }
+        
+        if (clockItem != null) {
+            if (clockItem.cellX + clockItem.spanX > cols || clockItem.cellY + clockItem.spanY > rows) {
+                val newPos = findValidClockPosition(rows, cols, clockItem.page, items)
+                if (newPos != null) {
+                    db.update(clockItem.copy(cellX = newPos.first, cellY = newPos.second))
+                    AppLogger.d("HomeActivity", "Migrated clock to valid position: ${newPos.first}, ${newPos.second}")
+                } else {
+                    db.delete(clockItem.id)
+                    AppLogger.d("HomeActivity", "No valid position found for clock migration, deleted")
                 }
             }
         }
@@ -238,21 +316,26 @@ class HomeActivity : ComponentActivity() {
             
             val hasClock = items.any { it.packageName == "__CLOCK_WIDGET__" }
             if (!hasClock) {
-                val clockItem = WorkspaceItem(
-                    packageName = "__CLOCK_WIDGET__",
-                    activityName = "",
-                    cellX = 0,
-                    cellY = 0,
-                    spanX = 4,
-                    spanY = 2,
-                    page = 0,
-                    container = 0
-                )
-                withContext(Dispatchers.IO) {
-                    LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().insert(clockItem)
-                }
-                items = withContext(Dispatchers.IO) {
-                    LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
+                val newPos = findValidClockPosition(lastGridRows, lastGridCols, 0, items)
+                if (newPos != null) {
+                    val clockItem = WorkspaceItem(
+                        packageName = "__CLOCK_WIDGET__",
+                        activityName = "",
+                        cellX = newPos.first,
+                        cellY = newPos.second,
+                        spanX = 4,
+                        spanY = 2,
+                        page = 0,
+                        container = 0
+                    )
+                    withContext(Dispatchers.IO) {
+                        LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().insert(clockItem)
+                    }
+                    items = withContext(Dispatchers.IO) {
+                        LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
+                    }
+                } else {
+                    AppLogger.d("HomeActivity", "No valid position found for clock widget seed, skipped")
                 }
             }
             
@@ -308,8 +391,8 @@ class HomeActivity : ComponentActivity() {
         return container
     }
 
-    private fun showClockOptions(item: WorkspaceItem) {
-        val options = arrayOf("Remove from Home")
+    private fun showClockOptions(item: WorkspaceItem, pageLayout: CellLayout, view: View?) {
+        val options = arrayOf("Move", "Remove from Home")
         AlertDialog.Builder(this)
             .setTitle("Clock Widget")
             .setItems(options) { _, which ->
@@ -320,6 +403,8 @@ class HomeActivity : ComponentActivity() {
                             rebuildWorkspaceAndHotseat()
                         }
                     }
+                } else if (options[which] == "Move" && view != null) {
+                    dragController.startDrag(view, item, item.page, item.cellX, item.cellY, false)
                 }
             }
             .show()

@@ -79,13 +79,20 @@ class DragController(
             val xOnPage = absoluteX - pageStartX
             val targetCellX = (xOnPage / page.cellWidth).toInt()
             val targetCellY = (yInWorkspace / page.cellHeight).toInt()
+            
+            val cellInfo = view.tag as? CellInfo
+            val spanX = cellInfo?.spanX ?: 1
+            val spanY = cellInfo?.spanY ?: 1
 
-            AppLogger.d("DragController", "resolveDrop attempt at target position: page $currentPage cell($targetCellX, $targetCellY), occupied=${page.isOccupied(targetCellX, targetCellY)}")
+            AppLogger.d("DragController", "resolveDrop attempt at target position: page $currentPage cell($targetCellX, $targetCellY), occupied=${page.isOccupied(targetCellX, targetCellY, spanX, spanY)}")
 
-            if (targetCellX in 0 until page.columnCount && targetCellY in 0 until page.rowCount && !page.isOccupied(targetCellX, targetCellY)) {
+            if (targetCellX >= 0 && targetCellX + spanX <= page.columnCount && 
+                targetCellY >= 0 && targetCellY + spanY <= page.rowCount && 
+                !page.isOccupied(targetCellX, targetCellY, spanX, spanY)) {
+                
                 if (!isHotseatItem) {
                     val oldPage = workspace.pages.getOrNull(fromPage)
-                    oldPage?.vacateCell(fromCellX, fromCellY)
+                    oldPage?.vacateCell(fromCellX, fromCellY, spanX, spanY)
                     oldPage?.removeView(view)
                 } else {
                     val slot = hotseat.getChildAt(fromCellX) as? android.widget.FrameLayout
@@ -93,7 +100,7 @@ class DragController(
                 }
 
                 view.visibility = View.VISIBLE
-                page.placeView(view, targetCellX, targetCellY)
+                page.placeView(view, targetCellX, targetCellY, spanX, spanY)
 
                 if (item != null) {
                     val updatedItem = item.copy(

@@ -19,9 +19,10 @@ class Workspace(
     var onCellTap: ((page: Int, cellX: Int, cellY: Int) -> Unit)? = null
     var onCellLongPress: ((page: Int, cellX: Int, cellY: Int) -> Unit)? = null
 
+    var isLongPressing = false
+
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean = true
-
         override fun onSingleTapUp(e: MotionEvent): Boolean {
             val page = pages.getOrNull(currentPage) ?: return false
             if (page.cellWidth > 0 && page.cellHeight > 0) {
@@ -36,8 +37,8 @@ class Workspace(
             }
             return true
         }
-
         override fun onLongPress(e: MotionEvent) {
+            isLongPressing = true
             AppLogger.d("Workspace", "onLongPress at ${e.x}, ${e.y}")
             val page = pages.getOrNull(currentPage) ?: return
             if (page.cellWidth > 0 && page.cellHeight > 0) {
@@ -49,7 +50,6 @@ class Workspace(
                 onCellLongPress?.invoke(currentPage, cellX, cellY)
             }
         }
-
         override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
             if (e1 != null) {
                 if (e1.x - e2.x > 50 && Math.abs(velocityX) > 200) {
@@ -95,13 +95,22 @@ class Workspace(
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_DOWN) {
-            gestureDetector.onTouchEvent(ev)
+            isLongPressing = false
         }
-        return false
+        gestureDetector.onTouchEvent(ev)
+        val intercept = isLongPressing
+        if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_CANCEL) {
+            isLongPressing = false
+        }
+        return intercept
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
-        return gestureDetector.onTouchEvent(ev)
+        gestureDetector.onTouchEvent(ev)
+        if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_CANCEL) {
+            isLongPressing = false
+        }
+        return true
     }
 
     fun setup(columns: Int, rows: Int) {

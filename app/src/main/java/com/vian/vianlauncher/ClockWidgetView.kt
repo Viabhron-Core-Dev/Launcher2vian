@@ -54,19 +54,32 @@ class ClockWidgetView(context: Context) : LinearLayout(context) {
 
         updateTime()
 
-        setOnClickListener {
-            AppLogger.d("ClockWidget", "Tapped, attempting to launch clock app")
+        AppLogger.d("ClockWidget", "Clock view created")
+    }
+
+    fun launchClockApp() {
+        AppLogger.d("ClockWidget", "Tapped, attempting to launch clock app")
+        try {
+            val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(intent)
+            AppLogger.d("ClockWidget", "Launched clock app successfully")
+        } catch (e: Exception) {
+            AppLogger.e("ClockWidget", "Failed to launch clock app, attempting fallback", e)
             try {
-                val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(intent)
-                AppLogger.d("ClockWidget", "Launched clock app successfully")
-            } catch (e: Exception) {
-                AppLogger.e("ClockWidget", "Failed to launch clock app", e)
+                val fallbackIntent = context.packageManager.getLaunchIntentForPackage("com.android.deskclock")
+                    ?: context.packageManager.getLaunchIntentForPackage("com.android.deskclock.go")
+                if (fallbackIntent != null) {
+                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(fallbackIntent)
+                    AppLogger.d("ClockWidget", "Launched fallback clock app successfully")
+                } else {
+                    AppLogger.e("ClockWidget", "No fallback clock app found")
+                }
+            } catch (e2: Exception) {
+                AppLogger.e("ClockWidget", "Fallback launch failed", e2)
             }
         }
-
-        AppLogger.d("ClockWidget", "Clock view created")
     }
 
     private fun updateTime() {
