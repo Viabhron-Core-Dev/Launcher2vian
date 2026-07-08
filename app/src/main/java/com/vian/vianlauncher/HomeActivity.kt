@@ -334,24 +334,54 @@ class HomeActivity : ComponentActivity() {
             }
             allAppsList = resolveInfos
             
-            var hotseatIndex = 0
-            val hotseatPackages = mutableListOf<String>()
-            for (i in 0 until 4) {
-                if (i < resolveInfos.size) {
-                    if (hotseatIndex == 2) hotseatIndex++
-                    val appInfo = resolveInfos[i]
+            var hotseatItems = withContext(Dispatchers.IO) {
+                LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(1)
+            }
+
+            if (hotseatItems.isEmpty()) {
+                var hotseatIndex = 0
+                val initialHotseatItems = mutableListOf<WorkspaceItem>()
+                for (i in 0 until 4) {
+                    if (i < resolveInfos.size) {
+                        if (hotseatIndex == 2) hotseatIndex++
+                        val appInfo = resolveInfos[i]
+                        val item = WorkspaceItem(
+                            packageName = appInfo.activityInfo.packageName,
+                            activityName = appInfo.activityInfo.name,
+                            cellX = hotseatIndex,
+                            cellY = 0,
+                            spanX = 1,
+                            spanY = 1,
+                            page = -1,
+                            container = 1
+                        )
+                        initialHotseatItems.add(item)
+                        hotseatIndex++
+                    }
+                }
+                
+                withContext(Dispatchers.IO) {
+                    val dao = LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao()
+                    for (item in initialHotseatItems) {
+                        dao.insert(item)
+                    }
+                    hotseatItems = dao.getAllForContainer(1)
+                }
+                AppLogger.d("Hotseat", "Seeded initial items: ${initialHotseatItems.map { it.packageName }}")
+            }
+
+            for (item in hotseatItems) {
+                val appInfo = resolveInfos.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
+                if (appInfo != null) {
                     val appView = createAppView(appInfo, false)
-                    hotseat.placeView(appView, hotseatIndex, 0)
+                    hotseat.placeView(appView, item.cellX, 0)
                     appView.setOnClickListener { launchApp(appInfo) }
                     appView.setOnLongClickListener { 
                         showAppOptions(null, appInfo, null, appView)
                         true 
                     }
-                    hotseatPackages.add(appInfo.activityInfo.packageName)
-                    hotseatIndex++
                 }
             }
-            AppLogger.d("Hotseat", "Populated with packages: $hotseatPackages")
             
             var items = withContext(Dispatchers.IO) {
                 LauncherDatabase.getDatabase(this@HomeActivity).workspaceDao().getAllForContainer(0)
