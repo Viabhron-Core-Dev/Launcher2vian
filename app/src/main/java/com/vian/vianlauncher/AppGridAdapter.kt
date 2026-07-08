@@ -17,7 +17,8 @@ import kotlinx.coroutines.withContext
 class AppGridAdapter(
     private var allApps: List<ResolveInfo>,
     private val pm: PackageManager,
-    private val onAppClicked: (ResolveInfo) -> Unit
+    private val onAppClicked: (ResolveInfo) -> Unit,
+    private val onAppLongClicked: (ResolveInfo) -> Unit = {}
 ) : RecyclerView.Adapter<AppGridAdapter.AppViewHolder>() {
 
     private var displayApps: List<ResolveInfo> = allApps
@@ -40,6 +41,11 @@ class AppGridAdapter(
         
         holder.itemView.setOnClickListener {
             onAppClicked(resolveInfo)
+        }
+
+        holder.itemView.setOnLongClickListener {
+            onAppLongClicked(resolveInfo)
+            true
         }
 
         coroutineScope.launch {

@@ -63,9 +63,25 @@ interface WorkspaceDao {
     suspend fun clearContainer(container: Int)
 }
 
+@Dao
+interface AppPreferenceDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(pref: AppPreference)
+
+    @Update
+    suspend fun update(pref: AppPreference)
+
+    @Query("SELECT * FROM app_preferences")
+    suspend fun getAll(): List<AppPreference>
+
+    @Query("SELECT * FROM app_preferences WHERE packageName = :packageName")
+    suspend fun get(packageName: String): AppPreference?
+}
+
 @Database(entities = [WorkspaceItem::class, FolderInfo::class, AppPreference::class], version = 1, exportSchema = false)
 abstract class LauncherDatabase : RoomDatabase() {
     abstract fun workspaceDao(): WorkspaceDao
+    abstract fun appPreferenceDao(): AppPreferenceDao
 
     companion object {
         @Volatile

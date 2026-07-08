@@ -53,6 +53,9 @@ class HomeActivity : ComponentActivity() {
     private var allAppsList = listOf<ResolveInfo>()
     private var currentWorkspaceItems = listOf<WorkspaceItem>()
     private var isFirstResume = true
+    
+    private var drawerShowHidden = false
+    private var drawerSortRecent = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -544,10 +547,16 @@ class HomeActivity : ComponentActivity() {
     }
 
     private fun setupDrawer() {
+        val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
+        drawerSortRecent = prefs.getBoolean("drawer_sort_recent", false)
+        drawerShowHidden = prefs.getBoolean("drawer_show_hidden", false)
+
         appGrid.layoutManager = GridLayoutManager(this, 4)
-        adapter = AppGridAdapter(emptyList(), packageManager) { resolveInfo ->
+        adapter = AppGridAdapter(emptyList(), packageManager, { resolveInfo ->
             launchApp(resolveInfo)
-        }
+        }, { resolveInfo ->
+            showAppDrawerOptions(resolveInfo)
+        })
         appGrid.adapter = adapter
 
         searchInput.addTextChangedListener(object : TextWatcher {
@@ -558,7 +567,93 @@ class HomeActivity : ComponentActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
         
+        findViewById<ImageView>(R.id.btn_play_store).setOnClickListener {
+            val playStoreIntent = packageManager.getLaunchIntentForPackage("com.android.vending")
+            if (playStoreIntent != null) {
+                startActivity(playStoreIntent)
+            } else {
+                val auroraIntent = packageManager.getLaunchIntentForPackage("com.aurora.store")
+                if (auroraIntent != null) {
+                    startActivity(auroraIntent)
+                } else {
+                    android.widget.Toast.makeText(this, "No App Store found", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        
+        findViewById<ImageView>(R.id.btn_drawer_menu).setOnClickListener {
+            showDrawerMenu()
+        }
+        
         loadApps()
+    }
+
+    private fun showDrawerMenu() {
+        val options = arrayOf(
+            if (drawerSortRecent) "Sort: A-Z" else "Sort: Recently Installed",
+            if (drawerShowHidden) "Hide Hidden Apps" else "Show Hidden Apps",
+            "Settings"
+        )
+        AlertDialog.Builder(this)
+            .setItems(options) { _, which ->
+                val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
+                when (which) {
+                    0 -> {
+                        drawerSortRecent = !drawerSortRecent
+                        prefs.edit().putBoolean("drawer_sort_recent", drawerSortRecent).apply()
+                        loadApps()
+                    }
+                    1 -> {
+                        drawerShowHidden = !drawerShowHidden
+                        prefs.edit().putBoolean("drawer_show_hidden", drawerShowHidden).apply()
+                        loadApps()
+                    }
+                    2 -> {
+                        startActivity(Intent(this, SettingsActivity::class.java))
+                        closeDrawer()
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun showAppDrawerOptions(resolveInfo: ResolveInfo) {
+        scope.launch(Dispatchers.IO) {
+            val db = LauncherDatabase.getDatabase(this@HomeActivity).appPreferenceDao()
+            val pref = db.get(resolveInfo.activityInfo.packageName)
+            val isHidden = pref?.isHidden ?: false
+            
+            withContext(Dispatchers.Main) {
+                val options = arrayOf(if (isHidden) "Unhide" else "Hide", "App Info")
+                AlertDialog.Builder(this@HomeActivity)
+                    .setTitle(resolveInfo.loadLabel(packageManager))
+                    .setItems(options) { _, which ->
+                        if (which == 0) {
+                            scope.launch(Dispatchers.IO) {
+                                if (pref != null) {
+                                    db.update(pref.copy(isHidden = !isHidden))
+                                } else {
+                                    val newPref = AppPreference(
+                                        packageName = resolveInfo.activityInfo.packageName,
+                                        isHidden = !isHidden,
+                                        customLabel = null
+                                    )
+                                    db.insert(newPref)
+                                }
+                                withContext(Dispatchers.Main) {
+                                    loadApps()
+                                }
+                            }
+                        } else if (which == 1) {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:${resolveInfo.activityInfo.packageName}")
+                            }
+                            startActivity(intent)
+                        }
+                    }
+                    .show()
+            }
+        }
     }
 
     private fun loadApps() {
@@ -567,10 +662,38 @@ class HomeActivity : ComponentActivity() {
                 addCategory(Intent.CATEGORY_LAUNCHER)
             }
             val resolveInfos = withContext(Dispatchers.IO) {
+                val db = LauncherDatabase.getDatabase(this@HomeActivity).appPreferenceDao()
+                val prefs = db.getAll().associateBy { it.packageName }
+                
                 val list = packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-                list.sortedBy { it.loadLabel(packageManager).toString().lowercase() }
+                
+                val filteredList = if (drawerShowHidden) {
+                    list
+                } else {
+                    list.filter { 
+                        val pref = prefs[it.activityInfo.packageName]
+                        !(pref?.isHidden ?: false)
+                    }
+                }
+                
+                if (drawerSortRecent) {
+                    filteredList.sortedByDescending { 
+                        try {
+                            packageManager.getPackageInfo(it.activityInfo.packageName, 0).firstInstallTime
+                        } catch (e: Exception) {
+                            0L
+                        }
+                    }
+                } else {
+                    filteredList.sortedBy { it.loadLabel(packageManager).toString().lowercase() }
+                }
             }
             adapter.updateApps(resolveInfos)
+            
+            // Reapply current search filter if any
+            if (searchInput.text.isNotEmpty()) {
+                adapter.filter(searchInput.text.toString())
+            }
         }
     }
 
