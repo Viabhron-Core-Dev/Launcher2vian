@@ -74,23 +74,10 @@ class HomeActivity : ComponentActivity() {
         dragController = DragController(this, workspace, hotseat, dragLayer)
         dragLayer.dragController = dragController
         
-        val btnSettings: Button = findViewById(R.id.btn_settings)
-
         ViewCompat.setOnApplyWindowInsetsListener(hotseat) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, systemBars.bottom)
             insets
-        }
-
-        ViewCompat.setOnApplyWindowInsetsListener(btnSettings) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            (view.layoutParams as ViewGroup.MarginLayoutParams).topMargin = systemBars.top + 32
-            view.requestLayout()
-            insets
-        }
-        
-        btnSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -570,12 +557,15 @@ class HomeActivity : ComponentActivity() {
         findViewById<ImageView>(R.id.btn_play_store).setOnClickListener {
             val playStoreIntent = packageManager.getLaunchIntentForPackage("com.android.vending")
             if (playStoreIntent != null) {
+                AppLogger.d("Drawer", "Launched com.android.vending")
                 startActivity(playStoreIntent)
             } else {
                 val auroraIntent = packageManager.getLaunchIntentForPackage("com.aurora.store")
                 if (auroraIntent != null) {
+                    AppLogger.d("Drawer", "Launched com.aurora.store")
                     startActivity(auroraIntent)
                 } else {
+                    AppLogger.d("Drawer", "No app store found")
                     android.widget.Toast.makeText(this, "No App Store found", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
@@ -599,12 +589,16 @@ class HomeActivity : ComponentActivity() {
                 val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
                 when (which) {
                     0 -> {
+                        val oldValue = drawerSortRecent
                         drawerSortRecent = !drawerSortRecent
+                        AppLogger.d("Drawer", "Sort changed: recent=$oldValue -> $drawerSortRecent")
                         prefs.edit().putBoolean("drawer_sort_recent", drawerSortRecent).apply()
                         loadApps()
                     }
                     1 -> {
+                        val oldValue = drawerShowHidden
                         drawerShowHidden = !drawerShowHidden
+                        AppLogger.d("Drawer", "Show hidden changed: $oldValue -> $drawerShowHidden")
                         prefs.edit().putBoolean("drawer_show_hidden", drawerShowHidden).apply()
                         loadApps()
                     }
@@ -629,12 +623,18 @@ class HomeActivity : ComponentActivity() {
                     .setTitle(resolveInfo.loadLabel(packageManager))
                     .setItems(options) { _, which ->
                         if (which == 0) {
+                            val pkg = resolveInfo.activityInfo.packageName
+                            if (isHidden) {
+                                AppLogger.d("Drawer", "Unhide tapped for package=$pkg")
+                            } else {
+                                AppLogger.d("Drawer", "Hide tapped for package=$pkg")
+                            }
                             scope.launch(Dispatchers.IO) {
                                 if (pref != null) {
                                     db.update(pref.copy(isHidden = !isHidden))
                                 } else {
                                     val newPref = AppPreference(
-                                        packageName = resolveInfo.activityInfo.packageName,
+                                        packageName = pkg,
                                         isHidden = !isHidden,
                                         customLabel = null
                                     )
