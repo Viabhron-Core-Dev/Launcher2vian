@@ -101,6 +101,8 @@ class DragController(
                 } else {
                     val slot = hotseat.getChildAt(fromCellX) as? android.widget.FrameLayout
                     slot?.removeView(view)
+                    view.setOnClickListener(null)
+                    view.setOnLongClickListener(null)
                 }
 
                 view.visibility = View.VISIBLE
