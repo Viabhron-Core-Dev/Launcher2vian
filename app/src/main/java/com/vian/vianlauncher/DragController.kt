@@ -121,7 +121,35 @@ class DragController(
                         }
                     }
                 } else if (isHotseatItem) {
-                    AppLogger.d("DragController", "Successful move to page $currentPage cell($targetCellX, $targetCellY) from Hotseat")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val dao = LauncherDatabase.getDatabase(activity).workspaceDao()
+                        val hotseatItems = dao.getAllForContainer(1)
+                        val draggedHotseatItem = hotseatItems.find { it.cellX == fromCellX }
+                        
+                        if (draggedHotseatItem != null) {
+                            dao.delete(draggedHotseatItem.id)
+                            
+                            val newItem = WorkspaceItem(
+                                packageName = draggedHotseatItem.packageName,
+                                activityName = draggedHotseatItem.activityName,
+                                cellX = targetCellX,
+                                cellY = targetCellY,
+                                spanX = 1,
+                                spanY = 1,
+                                page = currentPage,
+                                container = 0
+                            )
+                            dao.insert(newItem)
+                            
+                            AppLogger.d("DragController", "Successful move to page $currentPage cell($targetCellX, $targetCellY) from Hotseat")
+                            
+                            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                activity.refreshWorkspaceItemsList()
+                            }
+                        } else {
+                            AppLogger.d("DragController", "Failed to find Hotseat item in DB at cellX $fromCellX")
+                        }
+                    }
                 }
                 dropped = true
             } else {
