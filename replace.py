@@ -1,66 +1,63 @@
 import re
-
-with open('app/src/main/java/com/vian/vianlauncher/HomeActivity.kt', 'r') as f:
+with open('app/src/main/java/com/vian/vianlauncher/DragController.kt', 'r') as f:
     content = f.read()
 
-target1 = """    private var lastGridCols = 4
-    private var lastGridRows = 5
-    private var lastGridPages = 3"""
-replacement1 = """    private var lastGridCols = 4
-    private var lastGridRows = 5
-    private var lastGridPages = 3
-    private var lastDockCount = 5"""
+target = """                        if (draggedHotseatItem != null) {
+                            dao.delete(draggedHotseatItem.id)
 
-content = content.replace(target1, replacement1)
+                            val newItem = WorkspaceItem(
+                                packageName = draggedHotseatItem.packageName,
+                                activityName = draggedHotseatItem.activityName,
+                                cellX = targetSlot,
+                                cellY = 0,
+                                spanX = 1,
+                                spanY = 1,
+                                page = -1,
+                                container = 1
+                            )
+                            dao.insert(newItem)
+                            AppLogger.d("DragController", "Successful move to Hotseat slot $targetSlot")
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                activity.refreshWorkspaceItemsList()
+                            }
+                        }"""
 
-target2 = """    override fun onResume() {
-        super.onResume()
-        val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
-        val cols = prefs.getInt("grid_cols", 4)
-        val rows = prefs.getInt("grid_rows", 5)
-        val pages = prefs.getInt("grid_pages", 3)
-        
-        if (isFirstResume) {
-            isFirstResume = false
-            lastGridCols = cols
-            lastGridRows = rows
-            lastGridPages = pages
-            scope.launch(Dispatchers.IO) {
-                migrateClockPosition(rows, cols)
-                withContext(Dispatchers.Main) {
-                    rebuildWorkspaceAndHotseat()
-                }
-            }
-        } else if (cols != lastGridCols || rows != lastGridRows || pages != lastGridPages) {"""
+replacement = """                        if (draggedHotseatItem != null) {
+                            dao.delete(draggedHotseatItem.id)
 
-replacement2 = """    override fun onResume() {
-        super.onResume()
-        val prefs = getSharedPreferences("vian_launcher_prefs", Context.MODE_PRIVATE)
-        val cols = prefs.getInt("grid_cols", 4)
-        val rows = prefs.getInt("grid_rows", 5)
-        val pages = prefs.getInt("grid_pages", 3)
-        val dockCount = prefs.getInt("dock_count", 5)
-        
-        if (isFirstResume) {
-            isFirstResume = false
-            lastGridCols = cols
-            lastGridRows = rows
-            lastGridPages = pages
-            lastDockCount = dockCount
-            hotseat.dockCount = dockCount
-            scope.launch(Dispatchers.IO) {
-                migrateClockPosition(rows, cols)
-                withContext(Dispatchers.Main) {
-                    rebuildWorkspaceAndHotseat()
-                }
-            }
-        } else if (cols != lastGridCols || rows != lastGridRows || pages != lastGridPages || dockCount != lastDockCount) {
-            hotseat.dockCount = dockCount
-            lastDockCount = dockCount
-"""
+                            val newItem = WorkspaceItem(
+                                packageName = draggedHotseatItem.packageName,
+                                activityName = draggedHotseatItem.activityName,
+                                cellX = targetSlot,
+                                cellY = 0,
+                                spanX = 1,
+                                spanY = 1,
+                                page = -1,
+                                container = 1
+                            )
+                            dao.insert(newItem)
+                            AppLogger.d("DragController", "Successful move to Hotseat slot $targetSlot")
+                            
+                            val intent = android.content.Intent().apply {
+                                setClassName(draggedHotseatItem.packageName, draggedHotseatItem.activityName)
+                            }
+                            val appInfo = activity.packageManager.resolveActivity(intent, 0)
+                            
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                if (appInfo != null) {
+                                    view.setOnClickListener { activity.launchApp(appInfo) }
+                                    view.setOnLongClickListener { 
+                                        activity.showAppOptions(null, appInfo, null, view)
+                                        true 
+                                    }
+                                }
+                                activity.refreshWorkspaceItemsList()
+                            }
+                        }"""
 
-content = content.replace(target2, replacement2)
-
-with open('app/src/main/java/com/vian/vianlauncher/HomeActivity.kt', 'w') as f:
-    f.write(content)
-print("Replaced HomeActivity")
+if target in content:
+    with open('app/src/main/java/com/vian/vianlauncher/DragController.kt', 'w') as f:
+        f.write(content.replace(target, replacement))
+    print("Updated DragController Hotseat->Hotseat")
+else:
+    print("Target not found")

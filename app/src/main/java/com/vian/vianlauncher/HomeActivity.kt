@@ -516,7 +516,7 @@ class HomeActivity : ComponentActivity() {
             .show()
     }
 
-    private fun showAppOptions(item: WorkspaceItem?, resolveInfo: ResolveInfo, pageLayout: CellLayout?, view: View? = null) {
+    fun showAppOptions(item: WorkspaceItem?, resolveInfo: ResolveInfo, pageLayout: CellLayout?, view: View? = null) {
         val options = if (item != null) arrayOf("App Info", "Remove from Home", "Move") else arrayOf("App Info", "Move")
         AlertDialog.Builder(this)
             .setTitle(resolveInfo.loadLabel(packageManager))
@@ -756,7 +756,7 @@ class HomeActivity : ComponentActivity() {
         }
     }
 
-    private fun launchApp(resolveInfo: ResolveInfo) {
+    fun launchApp(resolveInfo: ResolveInfo) {
         try {
             val intent = packageManager.getLaunchIntentForPackage(resolveInfo.activityInfo.packageName)
             if (intent != null) {

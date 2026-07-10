@@ -112,7 +112,20 @@ class DragController(
                             )
                             dao.insert(newItem)
                             AppLogger.d("DragController", "Successful move to Hotseat slot $targetSlot")
+                            
+                            val intent = android.content.Intent().apply {
+                                setClassName(draggedHotseatItem.packageName, draggedHotseatItem.activityName)
+                            }
+                            val appInfo = activity.packageManager.resolveActivity(intent, 0)
+                            
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                if (appInfo != null) {
+                                    view.setOnClickListener { activity.launchApp(appInfo) }
+                                    view.setOnLongClickListener { 
+                                        activity.showAppOptions(null, appInfo, null, view)
+                                        true 
+                                    }
+                                }
                                 activity.refreshWorkspaceItemsList()
                             }
                         }
