@@ -49,6 +49,7 @@ class HomeActivity : ComponentActivity() {
     private var lastGridCols = 4
     private var lastGridRows = 5
     private var lastGridPages = 3
+    private var lastDockCount = 5
     
     private var allAppsList = listOf<ResolveInfo>()
     private var currentWorkspaceItems = listOf<WorkspaceItem>()
@@ -163,19 +164,25 @@ class HomeActivity : ComponentActivity() {
         val cols = prefs.getInt("grid_cols", 4)
         val rows = prefs.getInt("grid_rows", 5)
         val pages = prefs.getInt("grid_pages", 3)
+        val dockCount = prefs.getInt("dock_count", 5)
         
         if (isFirstResume) {
             isFirstResume = false
             lastGridCols = cols
             lastGridRows = rows
             lastGridPages = pages
+            lastDockCount = dockCount
+            hotseat.dockCount = dockCount
             scope.launch(Dispatchers.IO) {
                 migrateClockPosition(rows, cols)
                 withContext(Dispatchers.Main) {
                     rebuildWorkspaceAndHotseat()
                 }
             }
-        } else if (cols != lastGridCols || rows != lastGridRows || pages != lastGridPages) {
+        } else if (cols != lastGridCols || rows != lastGridRows || pages != lastGridPages || dockCount != lastDockCount) {
+            hotseat.dockCount = dockCount
+            lastDockCount = dockCount
+
             AppLogger.d("HomeActivity", "Grid size or pages changed, updating layout")
             
             scope.launch(Dispatchers.IO) {

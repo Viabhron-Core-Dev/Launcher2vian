@@ -10,6 +10,11 @@ class Hotseat(
     context: Context,
     attrs: AttributeSet? = null
 ) : LinearLayout(context, attrs) {
+    var dockCount = 5
+        set(value) {
+            field = value
+            weightSum = value.toFloat()
+        }
 
     init {
         orientation = HORIZONTAL
@@ -17,7 +22,7 @@ class Hotseat(
     }
 
     fun placeView(view: View, index: Int, cellY: Int) {
-        if (index !in 0 until 5) return
+        if (index !in 0 until dockCount) return
         AppLogger.d("Hotseat", "Placed view at index=$index")
         
         val slot = getChildAt(index) as? FrameLayout ?: return
@@ -27,7 +32,7 @@ class Hotseat(
 
     fun clearItems() {
         removeAllViews()
-        for (i in 0 until 5) {
+        for (i in 0 until dockCount) {
             val slot = FrameLayout(context).apply {
                 layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
             }

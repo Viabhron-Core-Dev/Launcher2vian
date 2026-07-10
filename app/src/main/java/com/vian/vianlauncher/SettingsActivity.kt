@@ -86,6 +86,19 @@ class SettingsActivity : ComponentActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        val spinDockCount = findViewById<Spinner>(R.id.spin_dock_count)
+        val dockAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("4", "5"))
+        spinDockCount.adapter = dockAdapter
+        spinDockCount.setSelection(prefs.getInt("dock_count", 5) - 4)
+        spinDockCount.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val value = position + 4
+                prefs.edit().putInt("dock_count", value).apply()
+                AppLogger.d("SettingsActivity", "Set dock count: $value")
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         // Icon Size
         val spinIconSize = findViewById<Spinner>(R.id.spin_icon_size)
         val sizes = listOf("Small", "Medium", "Large")
@@ -135,6 +148,7 @@ class SettingsActivity : ComponentActivity() {
         findViewById<Spinner>(R.id.spin_columns).setSelection(prefs.getInt("grid_cols", 4) - 3)
         findViewById<Spinner>(R.id.spin_rows).setSelection(prefs.getInt("grid_rows", 5) - 4)
         findViewById<Spinner>(R.id.spin_pages).setSelection(prefs.getInt("grid_pages", 3) - 1)
+        findViewById<Spinner>(R.id.spin_dock_count).setSelection(prefs.getInt("dock_count", 5) - 4)
         findViewById<Spinner>(R.id.spin_icon_size).setSelection(prefs.getInt("icon_size", 1))
 
         val isGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
