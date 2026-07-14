@@ -78,10 +78,27 @@ interface AppPreferenceDao {
     suspend fun get(packageName: String): AppPreference?
 }
 
+@Dao
+interface FolderDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(folder: FolderInfo): Long
+    @Update
+    suspend fun update(folder: FolderInfo)
+    @Query("DELETE FROM folder_info WHERE id = :id")
+    suspend fun delete(id: Long)
+    @Query("SELECT * FROM folder_info")
+    suspend fun getAll(): List<FolderInfo>
+    @Query("SELECT * FROM folder_info WHERE page = :page")
+    suspend fun getForPage(page: Int): List<FolderInfo>
+    @Query("SELECT * FROM folder_info WHERE id = :id")
+    suspend fun get(id: Long): FolderInfo?
+}
+
 @Database(entities = [WorkspaceItem::class, FolderInfo::class, AppPreference::class], version = 1, exportSchema = false)
 abstract class LauncherDatabase : RoomDatabase() {
     abstract fun workspaceDao(): WorkspaceDao
     abstract fun appPreferenceDao(): AppPreferenceDao
+    abstract fun folderDao(): FolderDao
 
     companion object {
         @Volatile

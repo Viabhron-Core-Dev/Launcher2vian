@@ -113,15 +113,19 @@ class DragController(
                             dao.insert(newItem)
                             AppLogger.d("DragController", "Successful move to Hotseat slot $targetSlot")
                             
-                            val intent = android.content.Intent().apply {
-                                setClassName(draggedHotseatItem.packageName, draggedHotseatItem.activityName)
-                            }
-                            val appInfo = activity.packageManager.resolveActivity(intent, 0)
+                            val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null)
+                            mainIntent.addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                            val resolveInfos = activity.packageManager.queryIntentActivities(mainIntent, 0)
+                            val appInfo = resolveInfos.find { it.activityInfo.packageName == draggedHotseatItem.packageName && it.activityInfo.name == draggedHotseatItem.activityName }
                             
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 if (appInfo != null) {
-                                    view.setOnClickListener { activity.launchApp(appInfo) }
+                                    view.setOnClickListener { 
+                                        AppLogger.e("DragController", "Reattached listener CLICKED for ${draggedHotseatItem.packageName}")
+                                        activity.launchApp(appInfo) 
+                                    }
                                     view.setOnLongClickListener { 
+                                        AppLogger.e("DragController", "Reattached listener LONG-CLICKED for ${draggedHotseatItem.packageName}")
                                         activity.showAppOptions(null, appInfo, null, view)
                                         true 
                                     }
@@ -160,10 +164,14 @@ class DragController(
                 targetCellY = targetCellY.coerceIn(0, Math.max(0, page.rowCount - spanY))
                 val oldPage = if (!isHotseatItem) workspace.pages.getOrNull(fromPage) else null
                 oldPage?.vacateCell(fromCellX, fromCellY, spanX, spanY)
-                AppLogger.d("DragController", "resolveDrop attempt at target position: page $currentPage cell($targetCellX, $targetCellY), occupied=${page.isOccupied(targetCellX, targetCellY, spanX, spanY)}")
+                val isOccupied = page.isOccupied(targetCellX, targetCellY, spanX, spanY)
+                val existingItem = activity.currentWorkspaceItems.find { it.page == currentPage && it.cellX == targetCellX && it.cellY == targetCellY && it.container == 0 }
+                val existingFolder = activity.currentFolders.find { it.page == currentPage && it.cellX == targetCellX && it.cellY == targetCellY }
+                AppLogger.d("DragController", "resolveDrop attempt at target position: page $currentPage cell($targetCellX, $targetCellY), occupied=$isOccupied")
+                
                 if (targetCellX >= 0 && targetCellX + spanX <= page.columnCount && 
                     targetCellY >= 0 && targetCellY + spanY <= page.rowCount && 
-                    !page.isOccupied(targetCellX, targetCellY, spanX, spanY)) {
+                    !isOccupied) {
                     
                     if (!isHotseatItem) {
                         oldPage?.removeView(view)
@@ -218,6 +226,31 @@ class DragController(
                             } else {
                                 AppLogger.d("DragController", "Failed to find Hotseat item in DB at cellX $fromCellX")
                             }
+                        }
+                    }
+                    dropped = true
+                } else if (!isHotseatItem && existingFolder != null && item != null) {
+                    val updatedItem = item.copy(page = -1, cellX = 0, cellY = 0, container = -existingFolder.id.toInt())
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        LauncherDatabase.getDatabase(activity).workspaceDao().update(updatedItem)
+                        AppLogger.d("DragController", "Added to folder ${existingFolder.id}")
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            activity.forceRebuild()
+                        }
+                    }
+                    dropped = true
+                } else if (!isHotseatItem && existingItem != null && item != null && existingItem.packageName != "__CLOCK_WIDGET__") {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        val db = LauncherDatabase.getDatabase(activity)
+                        val newFolder = com.vian.vianlauncher.FolderInfo(name = "Folder", color = android.graphics.Color.GRAY, cellX = targetCellX, cellY = targetCellY, page = currentPage)
+                        val folderId = db.folderDao().insert(newFolder)
+                        val updatedItem1 = existingItem.copy(page = -1, cellX = 0, cellY = 0, container = -folderId.toInt())
+                        val updatedItem2 = item.copy(page = -1, cellX = 0, cellY = 0, container = -folderId.toInt())
+                        db.workspaceDao().update(updatedItem1)
+                        db.workspaceDao().update(updatedItem2)
+                        AppLogger.d("DragController", "Created folder $folderId with two items")
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            activity.forceRebuild()
                         }
                     }
                     dropped = true
