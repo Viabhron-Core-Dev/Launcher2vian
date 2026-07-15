@@ -553,6 +553,7 @@ class HomeActivity : ComponentActivity() {
                             lastGridPages = currentPages + 1
                             lastDockCount = dockCount
                             scope.launch(Dispatchers.IO) {
+                                migrateClockPosition(rows, cols)
                                 withContext(Dispatchers.Main) {
                                     rebuildWorkspaceAndHotseat()
                                 }
@@ -729,19 +730,57 @@ class HomeActivity : ComponentActivity() {
                             .show()
                     }
                     "Remove Folder" -> {
-                        AlertDialog.Builder(this)
-                            .setTitle("Remove Folder")
-                            .setMessage("Are you sure? Items inside will be removed from the home screen.")
-                            .setPositiveButton("Remove") { _, _ ->
-                                scope.launch(Dispatchers.IO) {
-                                    val db = LauncherDatabase.getDatabase(this@HomeActivity)
-                                    db.workspaceDao().clearContainer(-folder.id.toInt())
-                                    db.folderDao().delete(folder.id)
-                                    withContext(Dispatchers.Main) { rebuildWorkspaceAndHotseat() }
+                        scope.launch(Dispatchers.IO) {
+                            val db = LauncherDatabase.getDatabase(this@HomeActivity)
+                            val items = db.workspaceDao().getAllForContainer(-folder.id.toInt())
+                            
+                            withContext(Dispatchers.Main) {
+                                val pageLayout = workspace.pages.getOrNull(folder.page) ?: return@withContext
+                                val cols = pageLayout.columnCount
+                                val rows = pageLayout.rowCount
+                                
+                                val emptyCells = mutableListOf<Pair<Int, Int>>()
+                                for (y in 0 until rows) {
+                                    for (x in 0 until cols) {
+                                        if ((x == folder.cellX && y == folder.cellY) || !pageLayout.isOccupied(x, y)) {
+                                            emptyCells.add(Pair(x, y))
+                                        }
+                                    }
+                                }
+                                
+                                if (items.size <= emptyCells.size) {
+                                    scope.launch(Dispatchers.IO) {
+                                        items.forEachIndexed { index, item ->
+                                            val cell = emptyCells[index]
+                                            db.workspaceDao().update(item.copy(page = folder.page, cellX = cell.first, cellY = cell.second, container = 0))
+                                        }
+                                        db.folderDao().delete(folder.id)
+                                        withContext(Dispatchers.Main) { rebuildWorkspaceAndHotseat() }
+                                    }
+                                } else {
+                                    val unplacedCount = items.size - emptyCells.size
+                                    AlertDialog.Builder(this@HomeActivity)
+                                        .setTitle("Not enough space")
+                                        .setMessage("$unplacedCount items cannot fit on this page and will be deleted. Continue?")
+                                        .setPositiveButton("Remove Folder") { _, _ ->
+                                            scope.launch(Dispatchers.IO) {
+                                                items.forEachIndexed { index, item ->
+                                                    if (index < emptyCells.size) {
+                                                        val cell = emptyCells[index]
+                                                        db.workspaceDao().update(item.copy(page = folder.page, cellX = cell.first, cellY = cell.second, container = 0))
+                                                    } else {
+                                                        db.workspaceDao().delete(item.id)
+                                                    }
+                                                }
+                                                db.folderDao().delete(folder.id)
+                                                withContext(Dispatchers.Main) { rebuildWorkspaceAndHotseat() }
+                                            }
+                                        }
+                                        .setNegativeButton("Cancel", null)
+                                        .show()
                                 }
                             }
-                            .setNegativeButton("Cancel", null)
-                            .show()
+                        }
                     }
                 }
             }
