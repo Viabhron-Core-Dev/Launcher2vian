@@ -42,6 +42,7 @@ class HomeActivity : ComponentActivity() {
     private lateinit var searchInput: EditText
     private lateinit var adapter: AppGridAdapter
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var rebuildJob: kotlinx.coroutines.Job? = null
     
     private lateinit var workspace: Workspace
     private lateinit var hotseat: Hotseat
@@ -320,28 +321,28 @@ class HomeActivity : ComponentActivity() {
     }
 
     private fun rebuildWorkspaceAndHotseat() {
-        workspace.setup(lastGridCols, lastGridRows, lastGridPages)
+        rebuildJob?.cancel()
+        rebuildJob = scope.launch {
+            workspace.setup(lastGridCols, lastGridRows, lastGridPages)
         setupPageIndicator(workspace.pages.size)
         updatePageIndicator(workspace.currentPage)
         
         hotseat.clearItems()
         
-        val drawerToggle = ImageView(this).apply {
+        val drawerToggle = ImageView(this@HomeActivity).apply {
             setImageResource(android.R.drawable.ic_menu_sort_by_size)
             setOnClickListener { openDrawer() }
             val size = dpToPx(56)
             layoutParams = ViewGroup.LayoutParams(size, size)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
         }
-        val drawerContainer = LinearLayout(this).apply {
+        val drawerContainer = LinearLayout(this@HomeActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             addView(drawerToggle)
         }
         hotseat.placeView(drawerContainer, 2, 0)
-        
-        scope.launch {
             val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
             val resolveInfos = withContext(Dispatchers.IO) {
                 val list = packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
@@ -426,8 +427,11 @@ class HomeActivity : ComponentActivity() {
                     AppLogger.d("HomeActivity", "No valid position found for clock widget seed, skipped")
                 }
             }
-            
+            val folders = withContext(Dispatchers.IO) {
+                LauncherDatabase.getDatabase(this@HomeActivity).folderDao().getAll()
+            }
             currentWorkspaceItems = items
+            currentFolders = folders
             
             for (folder in currentFolders) {
                 if (folder.page in 0 until workspace.pages.size) {
@@ -456,13 +460,13 @@ class HomeActivity : ComponentActivity() {
     }
 
     private fun createAppView(resolveInfo: ResolveInfo, showLabel: Boolean): View {
-        val container = LinearLayout(this).apply {
+        val container = LinearLayout(this@HomeActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             setPadding(4, 4, 4, 4)
         }
-        val icon = ImageView(this).apply {
+        val icon = ImageView(this@HomeActivity).apply {
             setImageDrawable(resolveInfo.loadIcon(packageManager))
             val size = dpToPx(56)
             layoutParams = LinearLayout.LayoutParams(size, size)
@@ -588,7 +592,7 @@ class HomeActivity : ComponentActivity() {
     }
 
     private fun createFolderView(folder: FolderInfo): View {
-        val container = LinearLayout(this).apply {
+        val container = LinearLayout(this@HomeActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -604,7 +608,7 @@ class HomeActivity : ComponentActivity() {
             }
         }
         // Small icon inside folder
-        val innerIcon = ImageView(this).apply {
+        val innerIcon = ImageView(this@HomeActivity).apply {
             setImageResource(android.R.drawable.ic_menu_agenda)
             layoutParams = FrameLayout.LayoutParams(dpToPx(32), dpToPx(32)).apply {
                 gravity = Gravity.CENTER
