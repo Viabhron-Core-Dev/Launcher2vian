@@ -638,7 +638,8 @@ class HomeActivity : ComponentActivity() {
     private fun openFolder(folder: FolderInfo) {
         scope.launch(Dispatchers.IO) {
             val db = LauncherDatabase.getDatabase(this@HomeActivity)
-            val items = db.workspaceDao().getAllForContainer(-folder.id.toInt())
+                        val items = db.workspaceDao().getAllForContainer(-folder.id.toInt())
+            AppLogger.d("Folder", "Query returned ${items.size} items for folder ${folder.id}")
             withContext(Dispatchers.Main) {
                 showFolderPopup(folder, items)
             }
@@ -662,7 +663,12 @@ class HomeActivity : ComponentActivity() {
         for (item in items) {
             val appInfo = resolveInfos.find { it.activityInfo.packageName == item.packageName && it.activityInfo.name == item.activityName }
             if (appInfo != null) {
-                val appView = createAppView(appInfo, true)
+                                val appView = createAppView(appInfo, true)
+                appView.layoutParams = android.widget.GridLayout.LayoutParams().apply {
+                    width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                    height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                    setGravity(android.view.Gravity.CENTER)
+                }
                 appView.setOnClickListener { 
                     launchApp(appInfo)
                     dialog.dismiss()
@@ -736,7 +742,8 @@ class HomeActivity : ComponentActivity() {
                     "Remove Folder" -> {
                         scope.launch(Dispatchers.IO) {
                             val db = LauncherDatabase.getDatabase(this@HomeActivity)
-                            val items = db.workspaceDao().getAllForContainer(-folder.id.toInt())
+                                        val items = db.workspaceDao().getAllForContainer(-folder.id.toInt())
+            AppLogger.d("Folder", "Query returned ${items.size} items for folder ${folder.id}")
                             
                             withContext(Dispatchers.Main) {
                                 val pageLayout = workspace.pages.getOrNull(folder.page) ?: return@withContext
